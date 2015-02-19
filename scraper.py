@@ -1,6 +1,9 @@
 from bs4 import BeautifulSoup
+
+import argparse
 import geocoder
 import json
+import pprint
 import re
 import requests
 import sys
@@ -28,6 +31,7 @@ HEALTH_PARAMS = {
     'Fuzzy_Search': 'N',
     'Sort': 'H'
 }
+
 
 
 def get_inspection_page(**kwargs):
@@ -171,8 +175,21 @@ def get_geojson(result):
     return geojson
 
 
+def argparser():
+    # TODO: finsh this
+    parser = argparse.ArgumentParser()
+    parser.add_argument("sorting", help="sort the resturants score",
+                        choices=["hi", "avg", "most"],
+                        default="hi")
+    parser.add_argument("how_many", help="how many results to produce",
+                        type=int)
+    parser.add_argument("--reverse", help="reverse the order of the results")
+
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
-    import pprint
+    args = argparser()
     test = len(sys.argv) > 1 and sys.argv[1] == 'test'
     total_result = {'type': 'FeatureCollection', 'features': []}
     for result in generate_results(test):
