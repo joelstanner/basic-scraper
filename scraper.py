@@ -135,12 +135,15 @@ def generate_results(test=False):
         html, encoding = get_inspection_page(**kwargs)
     doc = parse_source(html, encoding)
     listings = extract_data_listings(doc)
+    count = 0
     for listing in listings:
         metadata = extract_restaurant_metadata(listing)
         score_data = extract_score_data(listing)
         metadata.update(score_data)
         yield metadata
-
+        count += 1
+        if count == 10:
+            break
 
 def get_geojson(result):
     address = " ".join(result.get('Address', ''))
