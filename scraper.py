@@ -121,7 +121,8 @@ def extract_score_data(elem):
     }
     return data
 
-if __name__ == '__main__':
+
+def generate_results(test=False):
     kwargs = {
         'Inspection_Start': '2/18/2013',
         'Inspection_End': '2/18/2015',
@@ -131,6 +132,19 @@ if __name__ == '__main__':
         html, encoding = load_inspection_page()
     else:
         html, encoding = get_inspection_page(**kwargs)
+    doc = parse_source(html, encoding)
+    listings = extract_data_listings(doc)
+    for listing in listings:
+        metadata = extract_restaurant_metadata(listing)
+        score_data = extract_score_data(listing)
+        metadata.update(score_data)
+        yield metadata
+
+
+if __name__ == '__main__':
+    test = len(sys.argv) > 1 and sys.argv[1] == 'test'
+    for result in generate_results(test):
+        print result
         # code to re-create files as needed
         #html_part = open('inspection_page.html', 'w')
         #html_part.write(html)
@@ -138,17 +152,5 @@ if __name__ == '__main__':
         #encoding_part = open('inspection_page_encoding.html', 'w')
         #encoding_part.write(encoding)
         #encoding_part.closed
-    doc = parse_source(html, encoding)
-    listings = extract_data_listings(doc)
-    final_data = {}
-    for listing in listings:
-        metadata = extract_restaurant_metadata(listing)
-        score_data = extract_score_data(listing)
-        final_data[metadata.get('Business Name')[0]] = score_data
-    report = open('final_info.txt', 'w')
-    for i in final_data.items():
-        report.writelines(str(i))
-        report.writelines('\n')
-    report.closed
 
 # https://github.com/efrainc/basic_scraper/blob/master/scraper.py
