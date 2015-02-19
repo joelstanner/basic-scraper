@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import sys
 import re
+import geocoder
 
 
 BASE_URL = 'http://info.kingcounty.gov'
@@ -141,10 +142,20 @@ def generate_results(test=False):
         yield metadata
 
 
+def get_geojson(result):
+    address = " ".join(result.get('Address', ''))
+    if not address:
+        return None
+    geocoded = geocoder.google(address)
+    return geocoded.geojson
+
+
 if __name__ == '__main__':
+    import pprint
     test = len(sys.argv) > 1 and sys.argv[1] == 'test'
     for result in generate_results(test):
-        print result
+        geo_result = get_geojson(result)
+        pprint.pprint(geo_result)
         # code to re-create files as needed
         #html_part = open('inspection_page.html', 'w')
         #html_part.write(html)
