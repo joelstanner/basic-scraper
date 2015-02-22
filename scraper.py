@@ -12,7 +12,6 @@ import json
 import pprint
 import re
 import requests
-import sys
 
 
 BASE_URL = 'http://info.kingcounty.gov'
@@ -195,7 +194,6 @@ def get_geojson(result):
 
 
 def argparser():
-    # TODO: finsh this
     parser = argparse.ArgumentParser(
         description='Return some inspection scores'
     )
@@ -231,4 +229,3 @@ if __name__ == '__main__':
         #encoding_part = open('inspection_page_encoding.html', 'w')
         #encoding_part.write(encoding)
         #encoding_part.closed
-
