@@ -1,7 +1,17 @@
-import requests
+# -*- coding: utf-8 -*-
+# Some code forked from the following sources:
+# https://github.com/efrainc/basic_scraper/blob/master/scraper.py
+# https://github.com/constanthatz/basic-scraper
+
 from bs4 import BeautifulSoup
-import sys
+from operator import itemgetter
+
+import argparse
+import geocoder
+import json
+import pprint
 import re
+import requests
 
 
 BASE_URL = 'http://info.kingcounty.gov'
@@ -121,16 +131,97 @@ def extract_score_data(elem):
     }
     return data
 
-if __name__ == '__main__':
+
+def generate_results(sort, count, reverse, test=True):
     kwargs = {
         'Inspection_Start': '2/18/2013',
         'Inspection_End': '2/18/2015',
-        'Zip_Code': '98102'
+        'Zip_Code': '98103'
     }
-    if len(sys.argv) > 1 and sys.argv[1] == 'test':
+    if test:
         html, encoding = load_inspection_page()
     else:
         html, encoding = get_inspection_page(**kwargs)
+    doc = parse_source(html, encoding)
+    listings = extract_data_listings(doc)
+    data_list = []
+    for listing in listings:
+        metadata = extract_restaurant_metadata(listing)
+        score_data = extract_score_data(listing)
+        metadata.update(score_data)
+        data_list.append(metadata)
+
+    if sort == 'hi':
+        usort = u'High Score'
+    elif sort == 'avg':
+        usort = u'Average Score'
+    elif sort == 'most':
+        usort == 'Total Inspections'
+
+    try:
+        data_list = sorted(data_list,
+                           key=itemgetter(usort),
+                           reverse=(not reverse))
+    except UnboundLocalError:
+        print "UnboundLocalError"
+
+    for item in data_list[:count]:
+        yield item
+
+
+def get_geojson(result):
+    address = " ".join(result.get('Address', ''))
+    if not address:
+        return None
+    geocoded = geocoder.google(address)
+    geojson = geocoded.geojson
+    inspection_data = {}
+    use_keys = (
+        'Business Name', 'Average Score', 'Total Inspections', 'High Score',
+        'Address',
+    )
+    for key, val in result.items():
+        if key not in use_keys:
+            continue
+        if isinstance(val, list):
+            val = " ".join(val)
+        inspection_data[key] = val
+    new_address = geojson['properties'].get('address')
+    if new_address:
+        inspection_data['Address'] = new_address
+    geojson['properties'] = inspection_data
+    return geojson
+
+
+def argparser():
+    parser = argparse.ArgumentParser(
+        description='Return some inspection scores'
+    )
+    parser.add_argument("-s", "--sort",
+                        help="sort the resturants score (default high)",
+                        choices=["hi", "avg", "most"],
+                        default="hi")
+    parser.add_argument("-n", "--number",
+                        help="how many results to produce (default 10)",
+                        type=int, default=10)
+    parser.add_argument("-r", "--reverse",
+                        help="reverse the order of the results",
+                        action='store_true')
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    arguments = argparser()
+    total_result = {'type': 'FeatureCollection', 'features': []}
+    for result in generate_results(
+        arguments.sort, arguments.number, arguments.reverse
+    ):
+        geo_result = get_geojson(result)
+        pprint.pprint(geo_result)
+        total_result['features'].append(geo_result)
+    with open('my_map.json', 'w') as fh:
+        json.dump(total_result, fh)
+
         # code to re-create files as needed
         #html_part = open('inspection_page.html', 'w')
         #html_part.write(html)
@@ -138,17 +229,3 @@ if __name__ == '__main__':
         #encoding_part = open('inspection_page_encoding.html', 'w')
         #encoding_part.write(encoding)
         #encoding_part.closed
-    doc = parse_source(html, encoding)
-    listings = extract_data_listings(doc)
-    final_data = {}
-    for listing in listings:
-        metadata = extract_restaurant_metadata(listing)
-        score_data = extract_score_data(listing)
-        final_data[metadata.get('Business Name')[0]] = score_data
-    report = open('final_info.txt', 'w')
-    for i in final_data.items():
-        report.writelines(str(i))
-        report.writelines('\n')
-    report.closed
-
-# https://github.com/efrainc/basic_scraper/blob/master/scraper.py
