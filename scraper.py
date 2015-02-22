@@ -1,3 +1,8 @@
+'''
+Original code forked from:
+https://github.com/efrainc/basic_scraper/blob/master/scraper.py
+'''
+
 import requests
 from bs4 import BeautifulSoup
 import sys
@@ -151,4 +156,3 @@ if __name__ == '__main__':
         report.writelines('\n')
     report.closed
 
-# https://github.com/efrainc/basic_scraper/blob/master/scraper.py
