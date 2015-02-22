@@ -1,4 +1,10 @@
+# -*- coding: utf-8 -*-
+# Some code forked from the following sources:
+# https://github.com/efrainc/basic_scraper/blob/master/scraper.py
+# https://github.com/constanthatz/basic-scraper
+
 from bs4 import BeautifulSoup
+from operator import itemgetter
 
 import argparse
 import geocoder
@@ -31,7 +37,6 @@ HEALTH_PARAMS = {
     'Fuzzy_Search': 'N',
     'Sort': 'H'
 }
-
 
 
 def get_inspection_page(**kwargs):
@@ -128,27 +133,41 @@ def extract_score_data(elem):
     return data
 
 
-def generate_results(test=False):
+def generate_results(sort, count, reverse, test=True):
     kwargs = {
         'Inspection_Start': '2/18/2013',
         'Inspection_End': '2/18/2015',
-        'Zip_Code': '98102'
+        'Zip_Code': '98103'
     }
-    if len(sys.argv) > 1 and sys.argv[1] == 'test':
+    if test:
         html, encoding = load_inspection_page()
     else:
         html, encoding = get_inspection_page(**kwargs)
     doc = parse_source(html, encoding)
     listings = extract_data_listings(doc)
-    count = 0
+    data_list = []
     for listing in listings:
         metadata = extract_restaurant_metadata(listing)
         score_data = extract_score_data(listing)
         metadata.update(score_data)
-        yield metadata
-        count += 1
-        if count == 10:
-            break
+        data_list.append(metadata)
+
+    if sort == 'hi':
+        usort = u'High Score'
+    elif sort == 'avg':
+        usort = u'Average Score'
+    elif sort == 'most':
+        usort == 'Total Inspections'
+
+    try:
+        data_list = sorted(data_list,
+                           key=itemgetter(usort),
+                           reverse=(not reverse))
+    except UnboundLocalError:
+        print "UnboundLocalError"
+
+    for item in data_list[:count]:
+        yield item
 
 
 def get_geojson(result):
@@ -177,22 +196,28 @@ def get_geojson(result):
 
 def argparser():
     # TODO: finsh this
-    parser = argparse.ArgumentParser()
-    parser.add_argument("sorting", help="sort the resturants score",
+    parser = argparse.ArgumentParser(
+        description='Return some inspection scores'
+    )
+    parser.add_argument("-s", "--sort",
+                        help="sort the resturants score (default high)",
                         choices=["hi", "avg", "most"],
                         default="hi")
-    parser.add_argument("how_many", help="how many results to produce",
-                        type=int)
-    parser.add_argument("--reverse", help="reverse the order of the results")
-
+    parser.add_argument("-n", "--number",
+                        help="how many results to produce (default 10)",
+                        type=int, default=10)
+    parser.add_argument("-r", "--reverse",
+                        help="reverse the order of the results",
+                        action='store_true')
     return parser.parse_args()
 
 
 if __name__ == '__main__':
-    args = argparser()
-    test = len(sys.argv) > 1 and sys.argv[1] == 'test'
+    arguments = argparser()
     total_result = {'type': 'FeatureCollection', 'features': []}
-    for result in generate_results(test):
+    for result in generate_results(
+        arguments.sort, arguments.number, arguments.reverse
+    ):
         geo_result = get_geojson(result)
         pprint.pprint(geo_result)
         total_result['features'].append(geo_result)
@@ -207,4 +232,3 @@ if __name__ == '__main__':
         #encoding_part.write(encoding)
         #encoding_part.closed
 
-# https://github.com/efrainc/basic_scraper/blob/master/scraper.py
